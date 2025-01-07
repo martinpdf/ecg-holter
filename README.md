@@ -1,70 +1,104 @@
-# Projets Arduino pour ECG et passerelle IoT
+# Projet IoT Holter Connecté
 
 ## Description
 
-Ce dépôt contient deux projets Arduino pour des cas d'utilisation différents :
+Ce projet vise à concevoir un système IoT de surveillance cardiaque basé sur deux cartes Arduino et une communication LoRa via The Things Network (TTN). Le dispositif mesure la fréquence cardiaque, détecte les anomalies comme les tachycardies ou bradycardies, et envoie des alertes en cas de dépassement de seuils définis. Les données collectées sont ensuite stockées dans une base PostgreSQL pour un suivi médical.
 
-1. **ecg.ino** : Un programme qui simule une sortie PWM basée sur une séquence et ajuste dynamiquement son rythme à l'aide d'un potentiomètre.
-2. **passerelle.ino** : Un programme passerelle pour lire les signaux ECG, calculer la fréquence cardiaque et envoyer des notifications via LoRa vers The Things Network (TTN).
+## Détails des fichiers
 
----
+### `ecg.ino`
+Programme Arduino simulant des signaux cardiaques avec une sortie PWM. 
+- **Utilisation principale** : Génère une séquence analogique pour simuler des battements cardiaques réglables via un potentiomètre.
+- **Matériel requis** : Arduino Uno, potentiomètre, LED, circuit électronique pour signal.
 
-## Détails des projets
-
-### ecg.ino
-Ce programme génère une séquence de signaux analogiques sur une broche PWM, simulant des formes d'onde ECG, tout en permettant à l'utilisateur d'ajuster le rythme de répétition à l'aide d'un potentiomètre.
-
-**Fonctionnalités :**
-- Lit les valeurs d'un potentiomètre pour contrôler le temps de délai.
-- Produit des signaux PWM basés sur une séquence prédéfinie (`val[]`).
-- Fournit un retour visuel via une LED intégrée.
-
-**Matériel requis :**
-- Une carte Arduino (par exemple, Uno).
-- Un potentiomètre connecté à la broche analogique A0.
-- Une LED connectée à la broche 13.
-- Un dispositif ou circuit connecté à la broche PWM 9.
-
-### passerelle.ino
-Ce programme détecte les battements cardiaques, calcule la fréquence cardiaque (en BPM) et envoie des notifications à TTN via un module LoRa.
-
-**Fonctionnalités :**
-- Lit les signaux ECG à partir d'une entrée analogique.
-- Calcule les intervalles de temps entre les battements pour en déduire la fréquence cardiaque.
-- Envoie des notifications à TTN lorsque la fréquence cardiaque dépasse un seuil (100 BPM).
-- Détecte et signale la déconnexion des câbles ECG.
-
-**Matériel requis :**
-- Une carte Arduino compatible avec un module LoRa (par exemple, MKR WAN 1310).
-- Un capteur ECG connecté à la broche analogique A0.
-- Un module LoRa configuré pour TTN (plan de fréquence EU868).
-- Des fils connectés aux broches 8 et 9 pour la détection des câbles.
+### `passerelle.ino`
+Programme de surveillance et transmission des données ECG.
+- **Utilisation principale** : Lit les données d'un capteur ECG, calcule la fréquence cardiaque et envoie des notifications via LoRaWAN.
+- **Matériel requis** : Arduino Leonardo avec module LoRa, capteur ECG, passerelle TTN.
 
 ---
 
-## Installation et utilisation
+## Installation et Configuration
 
-1. Clonez ce dépôt sur votre machine locale.
+### Prérequis
+1. **Matériel** :
+   - Arduino Uno et Leonardo.
+   - Module LoRa compatible (par ex. MKR WAN 1310).
+   - Potentiomètre, LED et câbles.
+   - Capteur ECG.
+
+2. **Logiciels** :
+   - Arduino IDE (pour téléverser le code).
+   - Node-RED (pour le traitement des données).
+   - PostgreSQL (pour le stockage des données).
+   - Compte TTN actif.
+
+---
+
+### Étape 1 : Téléchargement du code source
+Clonez ce dépôt GitHub :
+```bash
+git clone https://github.com/martinpdf/ecg-holter.git
+```
+
+---
+
+### Étape 2 : Configuration Arduino
+1. **Ouvrir les fichiers** `ecg.ino` et `passerelle.ino` dans l’IDE Arduino.
+2. **Configurer le matériel** :
+   - Connectez le circuit ECG et le potentiomètre aux broches spécifiées dans chaque programme.
+3. **Téléverser le code** :
+   - Sélectionnez la carte appropriée et téléversez chaque fichier `.ino` sur les cartes correspondantes.
+
+---
+
+### Étape 3 : Configuration TTN
+1. Créez une application sur TTN et configurez les identifiants (`AppEUI`, `DevEUI`, `AppKey`).
+2. Enregistrez votre dispositif en sélectionnant les paramètres LoRa adaptés à votre région (Europe 863-870 MHz).
+3. Ajoutez un décodeur de données (`Payload Formatters`) pour extraire et interpréter les valeurs BPM transmises par LoRa.
+
+---
+
+### Étape 4 : Configuration Node-RED
+1. Installez Node-RED :
    ```bash
-   git clone https://github.com/martinpdf/arduino-ecg-iot.git
+   sudo apt update && sudo apt install -y nodejs npm
+   sudo npm install -g --unsafe-perm node-red
    ```
+2. Lancez Node-RED :
+   ```bash
+   node-red
+   ```
+3. Configurez les flux pour recevoir les données MQTT depuis TTN, décodez les valeurs BPM et affichez-les dans un tableau de bord.
 
-2. Ouvrez le fichier `.ino` correspondant dans l'IDE Arduino.
+---
 
-3. Sélectionnez la carte et le port appropriés dans l'IDE Arduino.
-
-4. Téléversez le programme sur votre carte Arduino.
-
-5. Connectez les composants matériels requis comme décrit ci-dessus.
-
-6. Surveillez la sortie via le moniteur série de l'IDE Arduino.
+### Étape 5 : Configuration PostgreSQL
+1. Installez PostgreSQL :
+   ```bash
+   sudo apt install -y postgresql postgresql-contrib
+   ```
+2. Créez une base et une table :
+   ```sql
+   CREATE DATABASE ecg_data;
+   CREATE TABLE ecg_data (
+       id SERIAL PRIMARY KEY,
+       timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+       bpm INT NOT NULL
+   );
+   ```
+3. Configurez Node-RED pour envoyer les données décodées dans cette base.
 
 ---
 
 ## Fonctionnement
+1. **ecg.ino** : Génère des signaux cardiaques simulés via une sortie PWM.
+2. **passerelle.ino** : Lit les données ECG, calcule le BPM et transmet les alertes via LoRa.
+3. **TTN** : Traite les données LoRaWAN et transmet les informations décodées.
+4. **Node-RED** : Surveille les BPM en temps réel et affiche un historique.
+5. **PostgreSQL** : Stocke les données pour un suivi à long terme.
 
-### ecg.ino
-Le programme lit la valeur du potentiomètre à l'aide de `analogRead()` et la convertit en un délai compris entre 150 ms et 1000 ms. Ensuite, il parcourt le tableau `val[]` pour générer des signaux PWM sur la broche 9 et allume la LED sur la broche 13 pendant l'exécution de la séquence.
+---
 
-### passerelle.ino
-Le programme lit les signaux ECG depuis la broche A0 et calcule la fréquence cardiaque en fonction des intervalles entre les pics. Si la fréquence cardiaque dépasse un seuil prédéfini, une notification est envoyée à TTN via LoRa. Les broches 8 et 9 surveillent les connexions des câbles ECG et signalent toute déconnexion.
+## Lien vers le dépôt
+Pour consulter ou contribuer au projet : [GitHub](https://github.com/martinpdf/ecg-holter/)
